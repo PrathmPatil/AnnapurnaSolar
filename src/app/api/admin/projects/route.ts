@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 import { projectSchema, projectStatusSchema } from "@/lib/cms-schemas";
 import { requireAdmin } from "@/lib/admin-auth";
-import { collections, getMongoDb, hasMongoConfig } from "@/lib/mongodb";
+import { collections, getOptionalMongoDb } from "@/lib/mongodb";
 import { dashboardSeed } from "@/lib/solar-saas-data";
 import { adminApiLimiter, assertRateLimit, audit, sanitizeRecord } from "@/lib/secure";
 
@@ -11,11 +11,11 @@ export async function GET(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
 
-  if (!hasMongoConfig()) {
+  const db = await getOptionalMongoDb();
+  if (!db) {
     return Response.json({ ok: true, source: "seed", projects: dashboardSeed.projects });
   }
 
-  const db = await getMongoDb();
   const projects = await db.collection(collections.projects).find({}).sort({ updatedAt: -1 }).limit(100).toArray();
   return Response.json({ ok: true, source: "mongodb", projects });
 }
@@ -33,11 +33,11 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: "Invalid project data.", errors: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  if (!hasMongoConfig()) {
+  const db = await getOptionalMongoDb();
+  if (!db) {
     return Response.json({ ok: false, message: "MongoDB is required to create projects." }, { status: 503 });
   }
 
-  const db = await getMongoDb();
   const doc = {
     ...parsed.data,
     createdAt: new Date(),
@@ -64,11 +64,11 @@ export async function PATCH(request: Request) {
     return Response.json({ ok: false, message: "Valid project id and status are required." }, { status: 400 });
   }
 
-  if (!hasMongoConfig()) {
+  const db = await getOptionalMongoDb();
+  if (!db) {
     return Response.json({ ok: false, message: "MongoDB is required to update projects." }, { status: 503 });
   }
 
-  const db = await getMongoDb();
   await db.collection(collections.projects).updateOne(
     { _id: new ObjectId(id) },
     { $set: { status: status.data, updatedAt: new Date(), updatedBy: session?.email } },

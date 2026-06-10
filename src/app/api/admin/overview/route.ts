@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/admin-auth";
-import { collections, getMongoDb, hasMongoConfig } from "@/lib/mongodb";
+import { collections, getOptionalMongoDb } from "@/lib/mongodb";
 import { competitorInsights, dashboardSeed, saasModules } from "@/lib/solar-saas-data";
 import { adminApiLimiter, assertRateLimit } from "@/lib/secure";
 
@@ -10,7 +10,8 @@ export async function GET(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
 
-  if (!hasMongoConfig()) {
+  const db = await getOptionalMongoDb();
+  if (!db) {
     return Response.json({
       ok: true,
       source: "seed",
@@ -20,7 +21,6 @@ export async function GET(request: Request) {
     });
   }
 
-  const db = await getMongoDb();
   const [leadCount, projectCount, leads, projects] = await Promise.all([
     db.collection(collections.leads).countDocuments(),
     db.collection(collections.projects).countDocuments(),

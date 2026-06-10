@@ -1,6 +1,6 @@
 import { contentSettingsSchema } from "@/lib/cms-schemas";
 import { requireAdmin } from "@/lib/admin-auth";
-import { collections, getMongoDb, hasMongoConfig } from "@/lib/mongodb";
+import { collections, getOptionalMongoDb } from "@/lib/mongodb";
 import { dashboardSeed } from "@/lib/solar-saas-data";
 import { adminApiLimiter, assertRateLimit, audit, sanitizeRecord } from "@/lib/secure";
 
@@ -12,11 +12,11 @@ export async function GET(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
 
-  if (!hasMongoConfig()) {
+  const db = await getOptionalMongoDb();
+  if (!db) {
     return Response.json({ ok: true, source: "seed", settings: dashboardSeed.content });
   }
 
-  const db = await getMongoDb();
   const settings = await db.collection(collections.content).findOne({ key: settingsKey });
 
   return Response.json({
@@ -39,11 +39,11 @@ export async function PATCH(request: Request) {
     return Response.json({ ok: false, message: "Invalid content settings.", errors: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  if (!hasMongoConfig()) {
+  const db = await getOptionalMongoDb();
+  if (!db) {
     return Response.json({ ok: false, message: "MongoDB is required to save CMS settings." }, { status: 503 });
   }
 
-  const db = await getMongoDb();
   await db.collection(collections.content).updateOne(
     { key: settingsKey },
     {

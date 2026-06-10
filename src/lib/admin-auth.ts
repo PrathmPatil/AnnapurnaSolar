@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { HashUtils } from "secure-core-js";
-import { collections, getMongoDb, hasMongoConfig } from "./mongodb";
+import { collections, getOptionalMongoDb } from "./mongodb";
 import { cmsRbac, signValue, verifySignedValue } from "./secure";
 
 export type AdminSession = {
@@ -15,9 +15,9 @@ const sessionTtlMs = 1000 * 60 * 60 * 8;
 
 export async function verifyAdminCredentials(email: string, password: string) {
   const normalizedEmail = email.toLowerCase();
+  const db = await getOptionalMongoDb();
 
-  if (hasMongoConfig()) {
-    const db = await getMongoDb();
+  if (db) {
     const admin = await db.collection(collections.admins).findOne<{ _id: unknown; email: string; passwordHash: string; role?: "owner" }>({
       email: normalizedEmail,
     });

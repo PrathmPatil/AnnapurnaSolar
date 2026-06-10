@@ -1,4 +1,4 @@
-import { collections, getMongoDb, hasMongoConfig } from "./mongodb";
+import { collections, getOptionalMongoDb } from "./mongodb";
 import { blogPosts, company } from "./site-data";
 
 export type CmsFieldType = "text" | "textarea";
@@ -174,12 +174,12 @@ export function getDefaultContent(slug: string) {
 
 export async function getPageContent(slug: string): Promise<Record<string, string>> {
   const defaults = getDefaultContent(slug);
+  const db = await getOptionalMongoDb();
 
-  if (!hasMongoConfig()) {
+  if (!db) {
     return defaults;
   }
 
-  const db = await getMongoDb();
   const saved = await db.collection(collections.content).findOne<{ value?: Record<string, string> }>({ key: pageKey(slug) });
   return {
     ...defaults,
@@ -197,8 +197,8 @@ export async function getPageContentState(slug: string) {
   let updatedAt: Date | null = null;
   let source = "defaults";
 
-  if (hasMongoConfig()) {
-    const db = await getMongoDb();
+  const db = await getOptionalMongoDb();
+  if (db) {
     const saved = await db
       .collection(collections.content)
       .findOne<{ value?: Record<string, string>; previousValue?: Record<string, string>; updatedAt?: Date }>({ key: pageKey(slug) });

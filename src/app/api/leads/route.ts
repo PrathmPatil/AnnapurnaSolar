@@ -1,4 +1,4 @@
-import { collections, getMongoDb, hasMongoConfig } from "@/lib/mongodb";
+import { collections, getOptionalMongoDb } from "@/lib/mongodb";
 import { audit, sanitizeRecord } from "@/lib/secure";
 import { validateLead } from "@/lib/validation";
 
@@ -23,9 +23,9 @@ export async function POST(request: Request) {
   }
 
   let leadId = `lead_${Date.now().toString(36)}`;
+  const db = await getOptionalMongoDb();
 
-  if (hasMongoConfig()) {
-    const db = await getMongoDb();
+  if (db) {
     const result = await db.collection(collections.leads).insertOne({
       ...body,
       source: body.source ?? "website",

@@ -1,5 +1,5 @@
 import { HashUtils, RateLimiter, RBAC, Sanitizer } from "secure-core-js";
-import { collections, getMongoDb, hasMongoConfig } from "./mongodb";
+import { collections, getOptionalMongoDb } from "./mongodb";
 
 export const adminLoginLimiter = new RateLimiter(60_000, 8);
 export const adminApiLimiter = new RateLimiter(60_000, 120);
@@ -57,11 +57,11 @@ export async function audit(action: string, actor: string, metadata: Record<stri
     createdAt: new Date(),
   };
 
-  if (!hasMongoConfig()) {
+  const db = await getOptionalMongoDb();
+  if (!db) {
     return event;
   }
 
-  const db = await getMongoDb();
   await db.collection(collections.audit).insertOne(event);
   return event;
 }

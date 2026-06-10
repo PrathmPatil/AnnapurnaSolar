@@ -1,6 +1,6 @@
 import { pageContentSchema } from "@/lib/cms-schemas";
 import { requireAdmin } from "@/lib/admin-auth";
-import { collections, getMongoDb, hasMongoConfig } from "@/lib/mongodb";
+import { collections, getOptionalMongoDb } from "@/lib/mongodb";
 import { cmsPages, getCmsPageDefinition, getPageContentState, pageKey } from "@/lib/page-content";
 import { adminApiLimiter, assertRateLimit, audit, sanitizeRecord } from "@/lib/secure";
 
@@ -47,7 +47,8 @@ export async function PATCH(request: Request) {
   const values = Object.fromEntries(Object.entries(parsed.data.values).filter(([key]) => allowedKeys.has(key)));
   const before = await getPageContentState(parsed.data.slug);
 
-  if (!hasMongoConfig()) {
+  const db = await getOptionalMongoDb();
+  if (!db) {
     return Response.json({
       ok: false,
       message: "MongoDB is required to save CMS page content. Current values are preview-only defaults.",
@@ -56,7 +57,6 @@ export async function PATCH(request: Request) {
     }, { status: 503 });
   }
 
-  const db = await getMongoDb();
   await db.collection(collections.content).updateOne(
     { key: pageKey(parsed.data.slug) },
     {
